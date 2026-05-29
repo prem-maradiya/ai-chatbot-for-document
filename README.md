@@ -96,7 +96,7 @@ sequenceDiagram
     User->>UI: Upload document
     UI->>API: POST /api/upload
     API->>API: Extract text + chunk (1k chars, 200 overlap)
-    API->>Embed: Embed chunks (text-embedding-004)
+    API->>Embed: Embed chunks (gemini-embedding-001)
     Embed-->>API: 768-dim vectors
     API->>DB: Insert {content, embedding, source}
     end
@@ -131,7 +131,7 @@ sequenceDiagram
 | Language | TypeScript |
 | Styling | Tailwind CSS, Geist typeface |
 | Vector store | Supabase (Postgres + `pgvector`) |
-| Embeddings | Google `text-embedding-004` (768-dim) |
+| Embeddings | Google `gemini-embedding-001` (768-dim) |
 | Generation | Google Gemini (streamed) |
 | Hosting | Vercel |
 
@@ -170,7 +170,7 @@ cp .env.local.example .env.local
 | `GOOGLE_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API |
-| `CHAT_MODEL` *(optional)* | Defaults to `gemini-2.0-flash`; set `gemini-2.5-flash` for the newer model |
+| `CHAT_MODEL` *(optional)* | Defaults to `gemini-2.5-flash`; set `gemini-2.5-flash-lite` for lower cost/latency |
 
 ### 4. Run
 

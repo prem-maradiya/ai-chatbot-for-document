@@ -8,13 +8,14 @@ function ai(): GoogleGenAI {
   return client;
 }
 
-// Generation model. Defaults to the fast, free-tier-friendly Flash model.
-// Override with CHAT_MODEL (e.g. gemini-2.5-flash) in .env.local.
-export const CHAT_MODEL = process.env.CHAT_MODEL ?? "gemini-2.0-flash";
+// Generation model. Defaults to the fast, current Flash model.
+// Override with CHAT_MODEL (e.g. gemini-2.5-flash-lite) in .env.local.
+export const CHAT_MODEL = process.env.CHAT_MODEL ?? "gemini-2.5-flash";
 
-// text-embedding-004 → 768-dim vectors. Keep in sync with the vector(768)
-// column dimension in supabase/schema.sql.
-const EMBED_MODEL = "text-embedding-004";
+// gemini-embedding-001 with outputDimensionality 768. Keep this dimension in
+// sync with the vector(768) column in supabase/schema.sql.
+const EMBED_MODEL = "gemini-embedding-001";
+const EMBED_DIM = 768;
 
 /**
  * Embed one or more texts with Google's embedding model.
@@ -30,6 +31,7 @@ export async function embed(
     contents: texts,
     config: {
       taskType: inputType === "document" ? "RETRIEVAL_DOCUMENT" : "RETRIEVAL_QUERY",
+      outputDimensionality: EMBED_DIM,
     },
   });
   return (res.embeddings ?? []).map((e) => e.values ?? []);

@@ -5,7 +5,7 @@
 create extension if not exists vector;
 
 -- 2. Table holding each chunk + its embedding.
---    Google text-embedding-004 produces 768-dimensional embeddings.
+--    Google gemini-embedding-001 produces 768-dimensional embeddings.
 create table if not exists documents (
   id bigserial primary key,
   content text not null,
