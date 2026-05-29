@@ -12,7 +12,7 @@ no hallucinations, no guessing.
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-pgvector-3FCF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com/)
-[![Anthropic](https://img.shields.io/badge/Claude-Anthropic-D97757?style=flat-square&logo=anthropic&logoColor=white)](https://www.anthropic.com/)
+[![Google Gemini](https://img.shields.io/badge/Gemini-Google-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
 
 [**Live demo**](https://your-deployment.vercel.app) · [Features](#features) · [Architecture](#architecture) · [How it works](#how-it-works) · [Getting started](#getting-started)
 
@@ -39,7 +39,7 @@ vector embeddings, similarity search, and streaming LLM generation with citation
 | **Inline citations** | Answers cite source filenames; an expandable panel shows each retrieved chunk with its similarity score |
 | **Streaming responses** | Tokens stream to the UI in real time over a newline-delimited JSON protocol |
 | **Knowledge-base management** | List indexed documents with chunk counts and remove them in one click |
-| **Production-ready** | Lazy-initialized clients, batched embeddings, prompt caching, and typed end-to-end |
+| **Production-ready** | Lazy-initialized clients, batched embeddings, and typed end-to-end |
 
 ## Architecture
 
@@ -56,19 +56,19 @@ flowchart LR
     end
 
     subgraph External["External services"]
-        VOY["Voyage AI<br/>(embeddings)"]
+        EMB["Google<br/>(embeddings)"]
         DB[("Supabase<br/>Postgres + pgvector")]
-        LLM["Anthropic Claude<br/>(generation)"]
+        LLM["Google Gemini<br/>(generation)"]
     end
 
     UI -- "upload file" --> UP
     UI -- "ask question" --> CH
     UI -- "list / delete" --> DOC
 
-    UP -- "embed chunks" --> VOY
+    UP -- "embed chunks" --> EMB
     UP -- "store vectors" --> DB
 
-    CH -- "embed query" --> VOY
+    CH -- "embed query" --> EMB
     CH -- "similarity search" --> DB
     CH -- "context + question" --> LLM
     LLM -- "streamed answer" --> UI
@@ -87,41 +87,41 @@ sequenceDiagram
     actor User
     participant UI as Browser
     participant API as API Route
-    participant Voyage
+    participant Embed as Google Embeddings
     participant DB as pgvector
-    participant Claude
+    participant Gemini
 
     rect rgb(245, 245, 245)
     note over User,DB: Indexing (once per document)
     User->>UI: Upload document
     UI->>API: POST /api/upload
     API->>API: Extract text + chunk (1k chars, 200 overlap)
-    API->>Voyage: Embed chunks (voyage-3.5)
-    Voyage-->>API: 1024-dim vectors
+    API->>Embed: Embed chunks (text-embedding-004)
+    Embed-->>API: 768-dim vectors
     API->>DB: Insert {content, embedding, source}
     end
 
     rect rgb(245, 245, 245)
-    note over User,Claude: Retrieval + generation (per question)
+    note over User,Gemini: Retrieval + generation (per question)
     User->>UI: Ask a question
     UI->>API: POST /api/chat
-    API->>Voyage: Embed query
-    Voyage-->>API: Query vector
+    API->>Embed: Embed query
+    Embed-->>API: Query vector
     API->>DB: match_documents() — cosine top-k
     DB-->>API: Most relevant chunks
-    API->>Claude: System prompt + context + question
-    Claude-->>UI: Stream answer (+ sources)
+    API->>Gemini: System prompt + context + question
+    Gemini-->>UI: Stream answer (+ sources)
     end
 ```
 
 **Why each piece:**
 
 - **Chunking with overlap** keeps passages that straddle a boundary retrievable.
-- **Voyage embeddings** map text to a 1024-dim vector space where semantic
-  similarity ≈ geometric closeness. (Claude itself doesn't produce embeddings, so a
-  dedicated embeddings model is used for the retrieval half.)
+- **Google embeddings** map text to a 768-dim vector space where semantic
+  similarity ≈ geometric closeness, so the most relevant chunks can be found by
+  nearest-neighbour search.
 - **pgvector cosine search** (`match_documents`) returns the top-k nearest chunks.
-- **Claude** generates the final answer constrained to that retrieved context.
+- **Gemini** generates the final answer constrained to that retrieved context.
 
 ## Tech stack
 
@@ -131,8 +131,8 @@ sequenceDiagram
 | Language | TypeScript |
 | Styling | Tailwind CSS, Geist typeface |
 | Vector store | Supabase (Postgres + `pgvector`) |
-| Embeddings | Voyage AI (`voyage-3.5`, 1024-dim) |
-| Generation | Anthropic Claude (streamed) |
+| Embeddings | Google `text-embedding-004` (768-dim) |
+| Generation | Google Gemini (streamed) |
 | Hosting | Vercel |
 
 ## Getting started
@@ -140,9 +140,9 @@ sequenceDiagram
 ### Prerequisites
 
 - Node.js 18+
-- A [Supabase](https://supabase.com) project, an
-  [Anthropic API key](https://console.anthropic.com), and a
-  [Voyage AI API key](https://www.voyageai.com) (generous free tiers on all three)
+- A [Supabase](https://supabase.com) project and a
+  [Google AI Studio](https://aistudio.google.com/apikey) API key (generous free
+  tiers on both — no credit card required)
 
 ### 1. Install
 
@@ -167,11 +167,10 @@ cp .env.local.example .env.local
 
 | Variable | Where to find it |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
-| `VOYAGE_API_KEY` | [voyageai.com](https://www.voyageai.com) → API Keys |
+| `GOOGLE_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API |
-| `CHAT_MODEL` *(optional)* | Defaults to `claude-opus-4-8`; set `claude-haiku-4-5` to use the cheapest model |
+| `CHAT_MODEL` *(optional)* | Defaults to `gemini-2.0-flash`; set `gemini-2.5-flash` for the newer model |
 
 ### 4. Run
 
@@ -184,8 +183,8 @@ Open <http://localhost:3000>, upload a document, and start asking questions.
 ## Deployment
 
 Deployed on [Vercel](https://vercel.com) — push to GitHub, import the repo
-(Next.js is auto-detected), add the four environment variables above, and deploy.
-The Supabase database is already cloud-hosted, so no additional production setup is
+(Next.js is auto-detected), add the environment variables above, and deploy. The
+Supabase database is already cloud-hosted, so no additional production setup is
 required.
 
 ## Project structure
@@ -197,7 +196,7 @@ src/
 │  ├─ layout.tsx              # Fonts + metadata
 │  └─ api/
 │     ├─ upload/route.ts      # extract → chunk → embed → store
-│     ├─ chat/route.ts        # retrieve → stream Claude (NDJSON)
+│     ├─ chat/route.ts        # retrieve → stream Gemini (NDJSON)
 │     └─ documents/route.ts   # list + delete indexed documents
 ├─ components/
 │  ├─ Workspace.tsx           # App shell + state coordination
@@ -205,8 +204,7 @@ src/
 │  ├─ Documents.tsx           # Knowledge-base list / delete
 │  └─ Chat.tsx                # Streaming chat + source citations
 └─ lib/
-   ├─ anthropic.ts            # Claude client + model selection
-   ├─ voyage.ts               # Embeddings
+   ├─ gemini.ts               # Google client — embeddings + generation
    ├─ supabase.ts             # Vector store client
    └─ chunk.ts                # Text chunking
 supabase/

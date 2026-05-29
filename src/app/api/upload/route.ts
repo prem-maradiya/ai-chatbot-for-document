@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractText, getDocumentProxy } from "unpdf";
 import { chunkText } from "@/lib/chunk";
-import { embed } from "@/lib/voyage";
+import { embed } from "@/lib/gemini";
 import { getSupabase } from "@/lib/supabase";
 
 // Indexing a large PDF can take a while — give the route headroom.

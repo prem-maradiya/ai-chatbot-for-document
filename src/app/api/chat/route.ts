@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAnthropic, CHAT_MODEL } from "@/lib/anthropic";
-import { embed } from "@/lib/voyage";
+import { embed, streamAnswer } from "@/lib/gemini";
 import { getSupabase } from "@/lib/supabase";
 
 export const maxDuration = 60;
@@ -59,24 +58,11 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       controller.enqueue(frame({ type: "sources", sources }));
       try {
-        const claudeStream = getAnthropic().messages.stream({
-          model: CHAT_MODEL,
-          max_tokens: 1024,
-          // cache_control marks the stable instructions as cacheable so repeated
-          // questions reuse the cached prefix once it exceeds the model minimum.
-          system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-          messages: [
-            {
-              role: "user",
-              content: `<context>\n${context || "No relevant documents found."}\n</context>\n\nQuestion: ${message}`,
-            },
-          ],
-        });
-
-        for await (const event of claudeStream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-            controller.enqueue(frame({ type: "delta", text: event.delta.text }));
-          }
+        const userContent = `<context>\n${context || "No relevant documents found."}\n</context>\n\nQuestion: ${message}`;
+        const answer = await streamAnswer(SYSTEM_PROMPT, userContent);
+        for await (const chunk of answer) {
+          const text = chunk.text;
+          if (text) controller.enqueue(frame({ type: "delta", text }));
         }
       } catch (err) {
         const detail = err instanceof Error ? err.message : "Generation failed";

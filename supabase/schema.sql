@@ -5,12 +5,12 @@
 create extension if not exists vector;
 
 -- 2. Table holding each chunk + its embedding.
---    voyage-3.5 produces 1024-dimensional embeddings.
+--    Google text-embedding-004 produces 768-dimensional embeddings.
 create table if not exists documents (
   id bigserial primary key,
   content text not null,
   metadata jsonb not null default '{}',
-  embedding vector(1024)
+  embedding vector(768)
 );
 
 -- 3. Approximate-nearest-neighbour index for fast cosine similarity search.
@@ -32,7 +32,7 @@ $$;
 
 -- 5. RPC the app calls to retrieve the most relevant chunks for a query.
 create or replace function match_documents (
-  query_embedding vector(1024),
+  query_embedding vector(768),
   match_count int default 5,
   filter jsonb default '{}'
 )
