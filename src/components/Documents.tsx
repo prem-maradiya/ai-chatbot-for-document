@@ -26,7 +26,7 @@ export default function Documents({
     }
   }, []);
 
-  // Reload on mount and whenever the parent bumps `version` (after an upload).
+  // Reload on mount and whenever the parent bumps `version`.
   useEffect(() => {
     load();
   }, [load, version]);
@@ -45,34 +45,43 @@ export default function Documents({
     }
   }
 
-  if (loading && docs.length === 0) {
-    return <p className="text-xs text-gray-400">Loading documents…</p>;
-  }
-  if (docs.length === 0) {
-    return <p className="text-xs text-gray-400">No documents indexed yet.</p>;
-  }
-
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        Indexed documents
-      </h2>
-      <ul className="flex flex-col gap-1">
-        {docs.map((d) => (
-          <li key={d.source} className="flex items-center justify-between gap-2 text-sm">
-            <span className="truncate">
-              {d.source} <span className="text-gray-400">({d.chunks} chunks)</span>
-            </span>
-            <button
-              onClick={() => remove(d.source)}
-              disabled={deleting === d.source}
-              className="shrink-0 rounded px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-400">
+          Documents
+        </h2>
+        {docs.length > 0 && (
+          <span className="font-mono text-[11px] text-neutral-400">{docs.length}</span>
+        )}
+      </div>
+
+      {loading && docs.length === 0 ? (
+        <p className="text-xs text-neutral-400">Loading…</p>
+      ) : docs.length === 0 ? (
+        <p className="text-xs text-neutral-400">No documents yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {docs.map((d) => (
+            <li
+              key={d.source}
+              className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 transition hover:border-neutral-300"
             >
-              {deleting === d.source ? "Deleting…" : "Delete"}
-            </button>
-          </li>
-        ))}
-      </ul>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-neutral-800">{d.source}</p>
+                <p className="font-mono text-[11px] text-neutral-400">{d.chunks} chunks</p>
+              </div>
+              <button
+                onClick={() => remove(d.source)}
+                disabled={deleting === d.source}
+                className="shrink-0 rounded-md px-2 py-1 text-xs text-neutral-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              >
+                {deleting === d.source ? "…" : "Remove"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

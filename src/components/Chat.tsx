@@ -1,39 +1,28 @@
 "use client";
 
-import { useState, useRef, FormEvent } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
 
 type Source = { index: number; source: string; similarity: number; snippet: string };
 type Message = { role: "user" | "assistant"; content: string; sources?: Source[] };
 
-export default function Chat({ onIndexed }: { onIndexed?: () => void }) {
+const EXAMPLES = [
+  "Summarize the key points",
+  "What are the main conclusions?",
+  "List any important dates or figures",
+];
+
+export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  async function handleUpload(e: FormEvent) {
-    e.preventDefault();
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
+  // Keep the latest message in view as tokens stream in.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
-    setUploadStatus(`Uploading and indexing "${file.name}"…`);
-    const form = new FormData();
-    form.append("file", file);
-
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Upload failed");
-      setUploadStatus(`Indexed "${data.source}" (${data.chunks} chunks). Ask away!`);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      onIndexed?.();
-    } catch (err) {
-      setUploadStatus(err instanceof Error ? err.message : "Upload failed");
-    }
-  }
-
-  // Apply a partial update to the last (assistant) message.
   function patchLast(patch: (m: Message) => Message) {
     setMessages((prev) => {
       const next = [...prev];
@@ -50,20 +39,14 @@ export default function Chat({ onIndexed }: { onIndexed?: () => void }) {
     } catch {
       return; // ignore malformed frame
     }
-    if (evt.type === "sources") {
-      patchLast((m) => ({ ...m, sources: evt.sources ?? [] }));
-    } else if (evt.type === "delta") {
-      patchLast((m) => ({ ...m, content: m.content + (evt.text ?? "") }));
-    } else if (evt.type === "error") {
+    if (evt.type === "sources") patchLast((m) => ({ ...m, sources: evt.sources ?? [] }));
+    else if (evt.type === "delta") patchLast((m) => ({ ...m, content: m.content + (evt.text ?? "") }));
+    else if (evt.type === "error")
       patchLast((m) => ({ ...m, content: m.content + `\n\n[Error: ${evt.message}]` }));
-    }
   }
 
-  async function handleSend(e: FormEvent) {
-    e.preventDefault();
-    const question = input.trim();
-    if (!question || loading) return;
-
+  async function send(question: string) {
+    if (!question.trim() || loading) return;
     setInput("");
     setLoading(true);
     setMessages((m) => [
@@ -91,7 +74,7 @@ export default function Chat({ onIndexed }: { onIndexed?: () => void }) {
         buffer = lines.pop() ?? ""; // keep the partial last line
         for (const line of lines) handleFrame(line);
       }
-      if (buffer) handleFrame(buffer); // flush any trailing frame
+      if (buffer) handleFrame(buffer); // flush trailing frame
     } catch (err) {
       patchLast((m) => ({
         ...m,
@@ -102,85 +85,117 @@ export default function Chat({ onIndexed }: { onIndexed?: () => void }) {
     }
   }
 
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    send(input.trim());
+  }
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      {/* Upload */}
-      <form
-        onSubmit={handleUpload}
-        className="flex items-center gap-2 rounded-lg border border-gray-200 p-3"
-      >
-        <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md" className="flex-1 text-sm" />
-        <button
-          type="submit"
-          className="rounded-md bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
-        >
-          Upload
-        </button>
-      </form>
-      {uploadStatus && <p className="text-xs text-gray-500">{uploadStatus}</p>}
-
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Messages */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-        {messages.length === 0 && (
-          <p className="text-sm text-gray-400">
-            No messages yet. Upload a document and ask a question.
-          </p>
-        )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={
-              m.role === "user" ? "flex flex-col items-end" : "flex flex-col items-start"
-            }
-          >
-            <div
-              className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${
-                m.role === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-900"
-              }`}
-            >
-              {m.content || (loading ? "…" : "")}
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8">
+        <div className="mx-auto flex max-w-2xl flex-col gap-5">
+          {messages.length === 0 ? (
+            <div className="mt-12 text-center">
+              <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+                Ask anything about your documents
+              </h1>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-neutral-500">
+                Every answer is generated only from the files in your knowledge base, with
+                citations you can verify.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                {EXAMPLES.map((ex) => (
+                  <button
+                    key={ex}
+                    onClick={() => send(ex)}
+                    className="rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-sm text-neutral-600 transition hover:border-neutral-300 hover:text-neutral-900"
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
             </div>
+          ) : (
+            messages.map((m, i) => (
+              <div
+                key={i}
+                className={m.role === "user" ? "flex flex-col items-end" : "flex flex-col items-start"}
+              >
+                <div
+                  className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    m.role === "user"
+                      ? "bg-neutral-900 text-white"
+                      : "border border-neutral-200 bg-white text-neutral-800"
+                  }`}
+                >
+                  {m.content || (loading ? <TypingDots /> : "")}
+                </div>
 
-            {m.role === "assistant" && m.sources && m.sources.length > 0 && (
-              <details className="mt-1 max-w-[85%] text-xs text-gray-500">
-                <summary className="cursor-pointer select-none hover:text-gray-700">
-                  {m.sources.length} source{m.sources.length > 1 ? "s" : ""} used
-                </summary>
-                <ul className="mt-1 flex flex-col gap-1">
-                  {m.sources.map((s) => (
-                    <li key={s.index} className="rounded border border-gray-200 p-2">
-                      <div className="font-medium text-gray-600">
-                        [{s.index}] {s.source}{" "}
-                        <span className="text-gray-400">· {(s.similarity * 100).toFixed(0)}% match</span>
-                      </div>
-                      <p className="mt-0.5 text-gray-500">{s.snippet}…</p>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
-        ))}
+                {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+                  <details className="mt-2 w-full max-w-[90%]">
+                    <summary className="cursor-pointer select-none text-xs font-medium text-neutral-400 transition hover:text-neutral-600">
+                      {m.sources.length} source{m.sources.length > 1 ? "s" : ""}
+                    </summary>
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {m.sources.map((s) => (
+                        <li
+                          key={s.index}
+                          className="rounded-lg border border-neutral-200 bg-white p-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="truncate text-xs font-medium text-neutral-700">
+                              {s.source}
+                            </span>
+                            <span className="ml-2 shrink-0 font-mono text-[11px] text-neutral-400">
+                              {(s.similarity * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+                            {s.snippet}…
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Composer */}
-      <form onSubmit={handleSend} className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question about your documents…"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
-        >
-          Send
-        </button>
-      </form>
+      <div className="border-t border-neutral-200 bg-white px-4 py-4 md:px-8">
+        <form onSubmit={onSubmit} className="mx-auto flex max-w-2xl items-center gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask a question…"
+            className="flex-1 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm outline-none transition focus:border-neutral-400 focus:bg-white focus:ring-4 focus:ring-neutral-900/5"
+          />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            className="rounded-xl bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Send
+          </button>
+        </form>
+        <p className="mx-auto mt-2 max-w-2xl text-center text-[11px] text-neutral-400">
+          Answers are grounded in your uploaded documents.
+        </p>
+      </div>
     </div>
+  );
+}
+
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 py-1">
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.3s]" />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.15s]" />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400" />
+    </span>
   );
 }
