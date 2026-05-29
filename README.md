@@ -147,8 +147,8 @@ sequenceDiagram
 ### 1. Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/sourced.git
-cd sourced
+git clone https://github.com/prem-maradiya/ai-document-chat.git
+cd ai-document-chat
 npm install
 ```
 
