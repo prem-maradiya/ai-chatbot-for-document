@@ -13,11 +13,12 @@ create table if not exists documents (
   embedding vector(768)
 );
 
--- 3. Approximate-nearest-neighbour index for fast cosine similarity search.
-create index if not exists documents_embedding_idx
-  on documents
-  using ivfflat (embedding vector_cosine_ops)
-  with (lists = 100);
+-- 3. No ANN index by default. pgvector does exact nearest-neighbour search,
+--    which is fast for small/medium datasets and ALWAYS returns correct results.
+--    (Heads-up: an `ivfflat` index created on an EMPTY table can't build its
+--    clusters and will return no results — a very common pitfall.)
+--    For large datasets, add an HNSW index AFTER loading data:
+--      create index on documents using hnsw (embedding vector_cosine_ops);
 
 -- 4. RPC the app uses to list indexed documents (one row per source file).
 create or replace function list_documents ()
