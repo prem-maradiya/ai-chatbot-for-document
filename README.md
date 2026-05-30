@@ -14,7 +14,7 @@ no hallucinations, no guessing.
 [![Supabase](https://img.shields.io/badge/Supabase-pgvector-3FCF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Google Gemini](https://img.shields.io/badge/Gemini-Google-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
 
-[**Live demo**](https://your-deployment.vercel.app) · [Features](#features) · [Architecture](#architecture) · [How it works](#how-it-works) · [Getting started](#getting-started)
+[**Live demo**](https://ai-chatbot-for-document.vercel.app/) · [Features](#features) · [Architecture](#architecture) · [How it works](#how-it-works) · [Getting started](#getting-started)
 
 </div>
 
