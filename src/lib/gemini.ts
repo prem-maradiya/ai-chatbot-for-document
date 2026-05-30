@@ -2,9 +2,15 @@ import { GoogleGenAI } from "@google/genai";
 
 // Lazily instantiated so importing this module doesn't require GOOGLE_API_KEY
 // at build time.
+// Guards against copy-paste mistakes (trailing newlines, value pasted twice):
+// take the first whitespace-delimited token. API keys have no internal spaces.
+function cleanEnv(value: string | undefined): string {
+  return (value ?? "").trim().split(/\s+/)[0] ?? "";
+}
+
 let client: GoogleGenAI | null = null;
 function ai(): GoogleGenAI {
-  if (!client) client = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+  if (!client) client = new GoogleGenAI({ apiKey: cleanEnv(process.env.GOOGLE_API_KEY) });
   return client;
 }
 

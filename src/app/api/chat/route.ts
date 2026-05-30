@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     match_count: 5,
   });
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("chat retrieval failed:", error);
+    return new Response(JSON.stringify({ error: "Failed to search documents" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -65,8 +66,10 @@ export async function POST(req: NextRequest) {
           if (text) controller.enqueue(frame({ type: "delta", text }));
         }
       } catch (err) {
-        const detail = err instanceof Error ? err.message : "Generation failed";
-        controller.enqueue(frame({ type: "error", message: detail }));
+        console.error("chat generation failed:", err);
+        controller.enqueue(
+          frame({ type: "error", message: "Sorry, something went wrong generating the answer." }),
+        );
       } finally {
         controller.close();
       }

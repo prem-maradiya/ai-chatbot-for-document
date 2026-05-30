@@ -51,8 +51,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ chunks: chunks.length, source: file.name });
   } catch (err) {
-    console.error(err);
-    const message = err instanceof Error ? err.message : "Upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("upload failed:", err);
+    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }
